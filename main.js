@@ -98,9 +98,12 @@ var app = http.createServer(function(request, response) {
       console.log(post);
       var title = post.title;
       var description = post.description;
+      // data 디렉토리에 파일 생성
+      fs.writeFile(`data/${title}`, description, "utf8", function(err) {
+        response.writeHead(302, { Location: `/?id=${title}` }); // 파일 생성이 끝나면 리다이렉트
+        response.end();
+      });
     });
-    response.writeHead(200);
-    response.end("success");
   } else {
     response.writeHead(404);
     response.end("Not found");
