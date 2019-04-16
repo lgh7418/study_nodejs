@@ -73,7 +73,7 @@ var app = http.createServer(function(request, response) {
         title,
         list,
         `
-        <form action="http://localhost:3000/create_process" method="post">
+        <form action="/create_process" method="post">
           <p><input type="text" name="title" placeholder="title"></p>
           <p>
             <textarea name="description" placeholder="description"></textarea>
@@ -116,7 +116,7 @@ var app = http.createServer(function(request, response) {
           title,
           list,
           `        
-           <form action="http://localhost:3000/create_process" method="post">
+           <form action="/update_process" method="post">
             <input type="hidden" name="id" value="${title}">
             <p><input type="text" name="title" placeholder="title" value="${title}"></p>
             <p>
@@ -130,6 +130,25 @@ var app = http.createServer(function(request, response) {
         );
         response.writeHead(200);
         response.end(template);
+      });
+    });
+  } else if (pathname === "/update_process") {
+    var body = "";
+    request.on("data", function(data) {
+      body = body + data;
+    });
+    request.on("end", function() {
+      var post = qs.parse(body);
+      console.log(post);
+      var id = post.id;
+      var title = post.title;
+      var description = post.description;
+      // title 수정 시 파일 이름 수정
+      fs.rename(`data/${id}`, `data/${title}`, function(err) {
+        fs.writeFile(`data/${title}`, description, "utf8", function(err) {
+          response.writeHead(302, { Location: `/?id=${title}` });
+          response.end();
+        });
       });
     });
   } else {
