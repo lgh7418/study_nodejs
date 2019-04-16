@@ -1,6 +1,7 @@
 var http = require("http");
 var fs = require("fs");
 var url = require("url"); // 모듈 url
+var qs = require("querystring");
 function templateHTML(title, list, body) {
   return `
   <!doctype html>
@@ -70,7 +71,7 @@ var app = http.createServer(function(request, response) {
         title,
         list,
         `
-        <form action="http://localhost:3000/process_create" method="post">
+        <form action="http://localhost:3000/create_process" method="post">
           <p><input type="text" name="title" placeholder="title"></p>
           <p>
             <textarea name="description" placeholder="description"></textarea>
@@ -79,10 +80,27 @@ var app = http.createServer(function(request, response) {
             <input type="submit">
           </p>
         </form>
-      `);
+      `
+      );
       response.writeHead(200);
       response.end(template);
     });
+  } else if (pathname === "/create_process") {
+    var body = "";
+    // 웹브라우저가 post 방식으로 전송될 때,
+    // 전송되는 데이터가 많을 경우 문제가 발생할 수 있기 때문에 호출할 때마다 데이터를 받을 수 있게 하는 함수
+    request.on("data", function(data) {
+      body = body + data;
+    });
+    // 더이상 전송할 데이터가 없으면 다음 함수를 실행
+    request.on("end", function() {
+      var post = qs.parse(body); // body를 파싱해서 객체화할 수 있음
+      console.log(post);
+      var title = post.title;
+      var description = post.description;
+    });
+    response.writeHead(200);
+    response.end("success");
   } else {
     response.writeHead(404);
     response.end("Not found");
