@@ -58,7 +58,12 @@ var app = http.createServer(function(request, response) {
             title,
             list,
             `<h2>${title}</h2><p>${description}</p> `,
-            `<a href="/create">create</a> <a href="/update?id=${title}">update</a>`
+            `<a href="/create">create</a> 
+            <a href="/update?id=${title}">update</a>
+            <form action="delete_process" method="post">
+              <input type="hidden" name="id" value="${title}">
+              <input type="submit" value="delete">
+            </form>` // delete는 링크로 하면 안됨
           );
           response.writeHead(200);
           response.end(template);
@@ -149,6 +154,19 @@ var app = http.createServer(function(request, response) {
           response.writeHead(302, { Location: `/?id=${title}` });
           response.end();
         });
+      });
+    });
+  } else if (pathname === "/delete_process") {
+    var body = "";
+    request.on("data", function(data) {
+      body = body + data;
+    });
+    request.on("end", function() {
+      var post = qs.parse(body);
+      var id = post.id;
+      fs.unlink(`data/${id}`, function(err) {
+        response.writeHead(302, { Location: "/" }); // redirection의 코드 번호: 302
+        response.end();
       });
     });
   } else {
