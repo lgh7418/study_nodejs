@@ -3,6 +3,8 @@ var fs = require("fs");
 var url = require("url"); // 모듈 url
 var qs = require("querystring");
 var template = require("./lib/template.js");
+var path = require("path");
+
 var app = http.createServer(function(request, response) {
   var _url = request.url;
   var queryData = url.parse(_url, true).query; // url의 query string을 파싱
@@ -24,7 +26,8 @@ var app = http.createServer(function(request, response) {
       });
     } else {
       fs.readdir("./data", function(err, filelist) {
-        fs.readFile(`data/${queryData.id}`, "utf8", function(err, description) {
+        var filteredId = path.parse(queryData.id).base;
+        fs.readFile(`data/${filteredId}`, "utf8", function(err, description) {
           var title = queryData.id;
           var list = template.list(filelist);
           var html = template.HTML(
@@ -87,7 +90,8 @@ var app = http.createServer(function(request, response) {
     });
   } else if (pathname === "/update") {
     fs.readdir("./data", function(err, filelist) {
-      fs.readFile(`data/${queryData.id}`, "utf8", function(err, description) {
+      var filteredId = path.parse(queryData.id).base;
+      fs.readFile(`data/${filteredId}`, "utf8", function(err, description) {
         var title = queryData.id;
         var list = template.list(filelist);
         var html = template.HTML(
@@ -137,7 +141,8 @@ var app = http.createServer(function(request, response) {
     request.on("end", function() {
       var post = qs.parse(body);
       var id = post.id;
-      fs.unlink(`data/${id}`, function(err) {
+      var filteredId = path.parse(id).base;
+      fs.unlink(`data/${filteredId}`, function(err) {
         response.writeHead(302, { Location: "/" }); // redirection의 코드 번호: 302
         response.end();
       });
