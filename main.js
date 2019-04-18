@@ -4,6 +4,7 @@ var url = require("url"); // 모듈 url
 var qs = require("querystring");
 var template = require("./lib/template.js");
 var path = require("path");
+var sanitizeHTML = require("sanitize-html"); // html 태그를 sanitize해줌
 
 var app = http.createServer(function(request, response) {
   var _url = request.url;
@@ -29,15 +30,19 @@ var app = http.createServer(function(request, response) {
         var filteredId = path.parse(queryData.id).base;
         fs.readFile(`data/${filteredId}`, "utf8", function(err, description) {
           var title = queryData.id;
+          var sanitizedTitle = sanitizeHTML(title); // sanitize 된 것인지 변수명으로 설정하면 좋음
+          var sanitizedDescription = sanitizeHTML(description, {
+            allowedTags: ["h1"]
+          });
           var list = template.list(filelist);
           var html = template.HTML(
             title,
             list,
-            `<h2>${title}</h2><p>${description}</p> `,
+            `<h2>${sanitizedTitle}</h2><p>${sanitizedDescription}</p> `,
             `<a href="/create">create</a> 
-            <a href="/update?id=${title}">update</a>
+            <a href="/update?id=${sanitizedTitle}">update</a>
             <form action="delete_process" method="post">
-              <input type="hidden" name="id" value="${title}">
+              <input type="hidden" name="id" value="${sanitizedTitle}">
               <input type="submit" value="delete">
             </form>` // delete는 링크로 하면 안됨
           );
