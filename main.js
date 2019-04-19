@@ -34,37 +34,13 @@ var app = http.createServer(function(request, response) {
         response.end(html);
       });
     } else {
-      /* fs.readdir("./data", function(err, filelist) {
-        var filteredId = path.parse(queryData.id).base;
-        fs.readFile(`data/${filteredId}`, "utf8", function(err, description) {
-          var title = queryData.id;
-          var sanitizedTitle = sanitizeHTML(title); // sanitize 된 것인지 변수명으로 설정하면 좋음
-          var sanitizedDescription = sanitizeHTML(description, {
-            allowedTags: ["h1"]
-          });
-          var list = template.list(filelist);
-          var html = template.HTML(
-            title,
-            list,
-            `<h2>${sanitizedTitle}</h2><p>${sanitizedDescription}</p> `,
-            `<a href="/create">create</a> 
-            <a href="/update?id=${sanitizedTitle}">update</a>
-            <form action="delete_process" method="post">
-              <input type="hidden" name="id" value="${sanitizedTitle}">
-              <input type="submit" value="delete">
-            </form>` // delete는 링크로 하면 안됨
-          );
-          response.writeHead(200);
-          response.end(html);
-        });
-      }); */
       db.query("SELECT * FROM topic", function(error, topics) {
         if (error) {
           throw error;
         }
         // `SELECT * FROM topic WHERE id=${queryData.id}` 이렇게 쓰면 사용자 입력값에 공격 당할 위험이 있음
         // ? 이용하면 queryData.id 값이 ?에 치환될 때 자동으로 세탁해줌
-        db.query(`SELECT * FROM topic WHERE id=?`,[queryData.id], function(error2, topic) {
+        db.query(`SELECT * FROM topic WHERE id=?`, [queryData.id], function(error2, topic) {
           if (error2) {
             throw error2;
           }
@@ -122,41 +98,48 @@ var app = http.createServer(function(request, response) {
     // 더이상 전송할 데이터가 없으면 다음 함수를 실행
     request.on("end", function() {
       var post = qs.parse(body);
-      db.query(`INSERT INTO topic (title, description, created, author_id) 
+      db.query(
+        `INSERT INTO topic (title, description, created, author_id) 
         VALUES(?, ?, NOW(), ?)`,
         [post.title, post.description, 1],
-        function(error, result){
-          if(error){
+        function(error, result) {
+          if (error) {
             throw error;
           }
           // id가 auto increment primary key인 경우, insert한 row의 id를 받아옴 => result.insertId
           response.writeHead(302, { Location: `/?id=${result.insertId}` });
           response.end();
         }
-      )
+      );
     });
   } else if (pathname === "/update") {
-    fs.readdir("./data", function(err, filelist) {
-      var filteredId = path.parse(queryData.id).base;
-      fs.readFile(`data/${filteredId}`, "utf8", function(err, description) {
-        var title = queryData.id;
-        var list = template.list(filelist);
+    db.query("SELECT * FROM topic", function(error, topics) {
+      if (error) {
+        throw error;
+      }
+      db.query(`SELECT * FROM topic WHERE id=?`, [queryData.id], function(error2, topic) {
+        if (error2) {
+          throw error2;
+        }
+        var list = template.list(topics);
         var html = template.HTML(
           title,
           list,
           `        
            <form action="/update_process" method="post">
-            <input type="hidden" name="id" value="${title}">
-            <p><input type="text" name="title" placeholder="title" value="${title}"></p>
+            <input type="hidden" name="id" value="${topic[0].id}">
+            <p><input type="text" name="title" placeholder="title" value="${topic[0].title}"></p>
             <p>
-              <textarea name="description" placeholder="description">${description}</textarea>
+              <textarea name="description" placeholder="description">${
+                topic[0].description
+              }</textarea>
             </p>
             <p>
               <input type="submit">
             </p>
           </form>`,
-          `<a href="/create">create</a> <a href="/update?id=${title}">update</a>`
-        );
+          `<a href="/create">create</a> <a href="/update?id=${topic[0].id}">update</a>`
+        ); // 나는 queryData.id를 썼는데 db에서 조회한 topic[0]으로 통일해주는 게 좋은 것 같음
         response.writeHead(200);
         response.end(html);
       });
@@ -168,17 +151,19 @@ var app = http.createServer(function(request, response) {
     });
     request.on("end", function() {
       var post = qs.parse(body);
-      console.log(post);
-      var id = post.id;
-      var title = post.title;
-      var description = post.description;
-      // title 수정 시 파일 이름 수정
-      fs.rename(`data/${id}`, `data/${title}`, function(err) {
-        fs.writeFile(`data/${title}`, description, "utf8", function(err) {
-          response.writeHead(302, { Location: `/?id=${title}` });
+      db.query(
+        `UPDATE topic
+        SET title=?, description=?, author_id=?
+        WHERE id=?`,
+        [post.title, post.description, 1, post.id],
+        function(error, result) {
+          if (error) {
+            throw error;
+          }
+          response.writeHead(302, { Location: `/?id=${post.id}` });
           response.end();
-        });
-      });
+        }
+      );
     });
   } else if (pathname === "/delete_process") {
     var body = "";
@@ -187,9 +172,10 @@ var app = http.createServer(function(request, response) {
     });
     request.on("end", function() {
       var post = qs.parse(body);
-      var id = post.id;
-      var filteredId = path.parse(id).base;
-      fs.unlink(`data/${filteredId}`, function(err) {
+      db.query("DELETE FROM topic WHERE id = ?", [post.id], function(error, result) {
+        if (error) {
+          throw error;
+        }
         response.writeHead(302, { Location: "/" }); // redirection의 코드 번호: 302
         response.end();
       });
