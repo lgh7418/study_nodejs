@@ -40,53 +40,66 @@ var app = http.createServer(function(request, response) {
         }
         // `SELECT * FROM topic WHERE id=${queryData.id}` 이렇게 쓰면 사용자 입력값에 공격 당할 위험이 있음
         // ? 이용하면 queryData.id 값이 ?에 치환될 때 자동으로 세탁해줌
-        db.query(`SELECT * FROM topic WHERE id=?`, [queryData.id], function(error2, topic) {
-          if (error2) {
-            throw error2;
+        db.query(
+          `SELECT * FROM topic LEFT JOIN author ON topic.author_id=author.id WHERE topic.id=?`,
+          [queryData.id],
+          function(error2, topic) {
+            if (error2) {
+              throw error2;
+            }
+            var title = topic[0].title;
+            var description = topic[0].description;
+            var list = template.list(topics);
+            var html = template.HTML(
+              title,
+              list,
+              `
+              <h2>${title}</h2>
+              <p>${description}</p>
+              <p>by ${topic[0].name}</p>
+              `,
+              `
+              <a href="/create">create</a>
+              <a href="/update?id=${queryData.id}">update</a>
+              <form action="delete_process" method="post">
+                <input type="hidden" name="id" value="${queryData.id}">
+                <input type="submit" value="delete">
+              </form>
+              `
+            );
+            response.writeHead(200);
+            response.end(html);
           }
-          var title = topic[0].title;
-          var description = topic[0].description;
-          var list = template.list(topics);
-          var html = template.HTML(
-            title,
-            list,
-            `<h2>${title}</h2><p>${description}</p> `,
-            `
-            <a href="/create">create</a>
-            <a href="/update?id=${queryData.id}">update</a>
-            <form action="delete_process" method="post">
-              <input type="hidden" name="id" value="${queryData.id}">
-              <input type="submit" value="delete">
-            </form>
-            `
-          );
-          response.writeHead(200);
-          response.end(html);
-        });
+        );
       });
     }
   } else if (pathname === "/create") {
     db.query("SELECT * FROM topic", function(error, topics) {
-      var title = "WEB - create";
-      var list = template.list(topics);
-      var html = template.HTML(
-        title,
-        list,
-        `
-        <form action="/create_process" method="post">
-          <p><input type="text" name="title" placeholder="title"></p>
-          <p>
-            <textarea name="description" placeholder="description"></textarea>
-          </p>
-          <p>
-            <input type="submit">
-          </p>
-        </form>
-      `,
-        ""
-      );
-      response.writeHead(200);
-      response.end(html);
+      // author의 목록을 조회해서 callback으로 결과를 받아옴
+      db.query("SELECT * FROM author", function(error2, authors) {
+        var title = "WEB - create";
+        var list = template.list(topics);
+        var html = template.HTML(
+          title,
+          list,
+          `
+          <form action="/create_process" method="post">
+            <p><input type="text" name="title" placeholder="title"></p>
+            <p>
+              <textarea name="description" placeholder="description"></textarea>
+            </p>
+            <p>
+              ${template.authorSelect(authors)}
+            <p>
+              <input type="submit">
+            </p>
+          </form>
+          `,
+          `<a href="/create">create</a>`
+        );
+        response.writeHead(200);
+        response.end(html);
+      });
     });
   } else if (pathname === "/create_process") {
     var body = "";
@@ -101,7 +114,7 @@ var app = http.createServer(function(request, response) {
       db.query(
         `INSERT INTO topic (title, description, created, author_id) 
         VALUES(?, ?, NOW(), ?)`,
-        [post.title, post.description, 1],
+        [post.title, post.description, post.author],
         function(error, result) {
           if (error) {
             throw error;
